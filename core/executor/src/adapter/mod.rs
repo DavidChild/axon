@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 
 use protocol::traits::{ApplyBackend, Backend, Context, ExecutorAdapter, Storage};
 use protocol::types::{
-    Account, Bytes, ExecutorContext, Hasher, Log, MerkleRoot, H160, H256, RLP_NULL, U256,
+    Account, Bytes, ExecutorContext, Hasher, Log, MerkleRoot, H160, H256, NIL_DATA, RLP_NULL, U256,
 };
 use protocol::{codec::ProtocolCodec, ProtocolResult};
 
@@ -146,6 +146,10 @@ where
             return Vec::new();
         };
 
+        if code_hash == NIL_DATA {
+            return Vec::new();
+        }
+
         let res = blocking_async!(self, storage, get_code_by_hash, Context::new(), &code_hash);
 
         res.unwrap().unwrap().to_vec()
@@ -276,7 +280,7 @@ where
                 nonce:        Default::default(),
                 balance:      Default::default(),
                 storage_root: RLP_NULL,
-                code_hash:    RLP_NULL,
+                code_hash:    NIL_DATA,
             },
         };
 
