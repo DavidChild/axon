@@ -9,21 +9,42 @@ use parking_lot::Mutex;
 
 use protocol::traits::{ApplyBackend, Backend, Context, ExecutorAdapter, Storage};
 use protocol::types::{
-    Account, Bytes, ExecutorContext, Hasher, Log, MerkleRoot, H160, H256, NIL_DATA, RLP_NULL, U256,
+    Account, Bytes, ExecutorContext, Hasher, Log, MerkleRoot, H160, H256, RLP_NULL, U256,
 };
-use protocol::{codec::ProtocolCodec, tokio, ProtocolResult};
+use protocol::{codec::ProtocolCodec, ProtocolResult};
 
 pub use trie::MPTTrie;
 pub use trie_db::RocksTrieDB;
 
-pub struct EVMExecutorAdapter<S, DB: cita_trie::DB> {
+macro_rules! blocking_async {
+    ($self_: ident, $adapter: ident, $method: ident$ (, $args: expr)*) => {{
+        let (tx, rx) = crossbeam_channel::bounded(1);
+
+        let rt = protocol::tokio::runtime::Handle::current();
+        let adapter = Arc::clone(&$self_.$adapter);
+
+        rt.clone().spawn_blocking(move || {
+            let res = rt.block_on(adapter.$method( $($args,)* )).unwrap();
+            let _ = tx.send(res);
+        });
+
+        rx.recv()
+    }};
+}
+
+#[derive(Clone)]
+pub struct EVMExecutorAdapter<S, DB: TrieDB> {
     trie:     Arc<Mutex<MPTTrie<DB>>>,
     db:       Arc<DB>,
     storage:  Arc<S>,
     exec_ctx: Arc<Mutex<ExecutorContext>>,
 }
 
-impl<S: Storage, DB: TrieDB> ExecutorAdapter for EVMExecutorAdapter<S, DB> {
+impl<S, DB> ExecutorAdapter for EVMExecutorAdapter<S, DB>
+where
+    S: Storage + 'static,
+    DB: TrieDB,
+{
     fn get_ctx(&self) -> ExecutorContext {
         self.exec_ctx.lock().clone()
     }
@@ -47,7 +68,11 @@ impl<S: Storage, DB: TrieDB> ExecutorAdapter for EVMExecutorAdapter<S, DB> {
     }
 }
 
-impl<S: Storage, DB: TrieDB> Backend for EVMExecutorAdapter<S, DB> {
+impl<S, DB> Backend for EVMExecutorAdapter<S, DB>
+where
+    S: Storage + 'static,
+    DB: TrieDB,
+{
     fn gas_price(&self) -> U256 {
         self.exec_ctx.lock().gas_price
     }
@@ -121,8 +146,7 @@ impl<S: Storage, DB: TrieDB> Backend for EVMExecutorAdapter<S, DB> {
             return Vec::new();
         };
 
-        let res = tokio::runtime::Handle::current()
-            .block_on(self.storage.get_code_by_hash(Context::new(), &code_hash));
+        let res = blocking_async!(self, storage, get_code_by_hash, Context::new(), &code_hash);
 
         res.unwrap().unwrap().to_vec()
     }
@@ -159,7 +183,11 @@ impl<S: Storage, DB: TrieDB> Backend for EVMExecutorAdapter<S, DB> {
     }
 }
 
-impl<S: Storage, DB: TrieDB> ApplyBackend for EVMExecutorAdapter<S, DB> {
+impl<S, DB> ApplyBackend for EVMExecutorAdapter<S, DB>
+where
+    S: Storage + 'static,
+    DB: TrieDB,
+{
     fn apply<A, I, L>(&mut self, values: A, logs: L, delete_empty: bool)
     where
         A: IntoIterator<Item = Apply<I>>,
@@ -195,7 +223,11 @@ impl<S: Storage, DB: TrieDB> ApplyBackend for EVMExecutorAdapter<S, DB> {
     }
 }
 
-impl<S: Storage, DB: TrieDB> EVMExecutorAdapter<S, DB> {
+impl<S, DB> EVMExecutorAdapter<S, DB>
+where
+    S: Storage + 'static,
+    DB: TrieDB,
+{
     pub fn new(
         db: Arc<DB>,
         storage: Arc<S>,
@@ -275,12 +307,14 @@ impl<S: Storage, DB: TrieDB> EVMExecutorAdapter<S, DB> {
         if let Some(c) = code {
             let new_code_hash = Hasher::digest(&c);
             if new_code_hash != old_account.code_hash {
-                tokio::runtime::Handle::current()
-                    .block_on(
-                        self.storage
-                            .insert_code(Context::new(), new_code_hash, c.into()),
-                    )
-                    .unwrap();
+                let _ = blocking_async!(
+                    self,
+                    storage,
+                    insert_code,
+                    Context::new(),
+                    new_code_hash,
+                    Bytes::from(c)
+                );
                 new_account.code_hash = new_code_hash;
             }
         }
