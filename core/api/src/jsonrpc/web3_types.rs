@@ -64,7 +64,7 @@ impl Web3Receipt {
         Web3Receipt {
             block_number:        receipt.block_number.into(),
             block_hash:          receipt.block_hash,
-            contract_address:    receipt.code_address.map(Into::into),
+            contract_address:    receipt.code_address,
             cumulative_gas_used: receipt.used_gas,
             effective_gas_price: receipt.used_gas,
             from:                receipt.sender,

@@ -12,7 +12,7 @@ use protocol::traits::{MemPool, Storage};
 use protocol::types::{Bytes, SignedTransaction, H160, H256, U256};
 use protocol::ProtocolResult;
 
-use crate::jsonrpc::web3_types::{BlockId, Web3Block, Web3CallRequest, Web3Receipt};
+use crate::jsonrpc::web3_types::{BlockId, Web3Block, Web3CallRequest, Web3Receipt,Web3ReceiptTemp};
 use crate::{adapter::DefaultAPIAdapter, APIError};
 
 type RpcResult<T> = Result<T, Error>;
@@ -21,7 +21,7 @@ type RpcResult<T> = Result<T, Error>;
 pub trait AxonJsonRpc {
     /// Sends signed transaction, returning its hash.
     #[method(name = "eth_sendRawTransaction")]
-    async fn send_raw_transaction(&self, tx: Bytes) -> RpcResult<H256>;
+    async fn send_raw_transaction(&self, tx: String) -> RpcResult<H256>;
 
     /// Get transaction by its hash.
     #[method(name = "eth_getTransactionByHash")]
@@ -61,6 +61,10 @@ pub trait AxonJsonRpc {
 
     #[method(name = "eth_getTransactionReceipt")]
     async fn get_transaction_receipt(&self, hash: H256) -> RpcResult<Option<Web3Receipt>>;
+
+    #[method(name = "eth_getTransactionReceipt_Temp")]
+    async fn get_transaction_receip_temp(&self, hash: H256) -> RpcResult<Option<Web3ReceiptTemp>>;
+
 
     #[method(name = "net_listening")]
     async fn listening(&self) -> RpcResult<bool>;

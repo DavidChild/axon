@@ -2,12 +2,12 @@ use jsonrpsee::types::Error;
 
 use protocol::traits::{APIAdapter, Context, MemPool, Storage};
 use protocol::types::{
-    Bytes, Header, SignedTransaction, TxResp, UnverifiedTransaction, H160, H256, H64, U256,
+    Bytes, Header, Hex, SignedTransaction, TxResp, UnverifiedTransaction, H160, H256, H64, U256,
 };
 use protocol::{async_trait, codec::ProtocolCodec, ProtocolResult};
 
 use crate::jsonrpc::web3_types::{
-    BlockId, RichTransactionOrHash, Web3Block, Web3CallRequest, Web3Receipt,
+    BlockId, RichTransactionOrHash, Web3Block, Web3CallRequest, Web3Receipt, Web3ReceiptTemp,
 };
 use crate::jsonrpc::{AxonJsonRpcServer, RpcResult};
 use crate::{adapter::DefaultAPIAdapter, APIError};
@@ -48,8 +48,12 @@ where
     S: Storage + 'static,
     DB: cita_trie::DB + 'static,
 {
-    async fn send_raw_transaction(&self, tx: Bytes) -> RpcResult<H256> {
-        let utx = UnverifiedTransaction::decode(&tx[1..])
+    async fn send_raw_transaction(&self, tx: String) -> RpcResult<H256> {
+        log::info!("rev orginal stx info:{:?}", &tx);
+        let stx = Hex::from_string(tx)
+            .map_err(|e| Error::Custom(e.to_string()))?
+            .decode();
+        let utx = UnverifiedTransaction::decode(&stx[1..])
             .map_err(|e| Error::Custom(e.to_string()))?
             .hash();
         let stx = SignedTransaction::try_from(utx).map_err(|e| Error::Custom(e.to_string()))?;
@@ -209,6 +213,33 @@ where
             .map_err(|e| Error::Custom(e.to_string()))?
         {
             Ok(Some(Web3Receipt::new(receipt, stx)))
+        } else {
+            Err(Error::Custom(format!(
+                "Cannot get receipt by hash {:?}",
+                hash
+            )))
+        }
+    }
+
+    async fn get_transaction_receip_temp(&self, hash: H256) -> RpcResult<Option<Web3ReceiptTemp>> {
+        let res = self
+            .adapter
+            .get_transaction_by_hash(Context::new(), hash)
+            .await
+            .map_err(|e| Error::Custom(e.to_string()))?;
+
+        if res.is_none() {
+            return Ok(None);
+        }
+
+        let stx = res.unwrap();
+        if let Some(receipt) = self
+            .adapter
+            .get_receipt_by_tx_hash(Context::new(), hash)
+            .await
+            .map_err(|e| Error::Custom(e.to_string()))?
+        {
+            Ok(Some(Web3ReceiptTemp::new(receipt, stx)))
         } else {
             Err(Error::Custom(format!(
                 "Cannot get receipt by hash {:?}",
