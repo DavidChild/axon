@@ -7,7 +7,7 @@ use protocol::types::{
 use protocol::{async_trait, codec::ProtocolCodec, ProtocolResult};
 
 use crate::jsonrpc::web3_types::{
-    BlockId, RichTransactionOrHash, Web3Block, Web3CallRequest, Web3Receipt, Web3ReceiptTemp,
+    BlockId, RichTransactionOrHash, Web3Block, Web3CallRequest, Web3Receipt,
 };
 use crate::jsonrpc::{AxonJsonRpcServer, RpcResult};
 use crate::{adapter::DefaultAPIAdapter, APIError};
@@ -213,33 +213,6 @@ where
             .map_err(|e| Error::Custom(e.to_string()))?
         {
             Ok(Some(Web3Receipt::new(receipt, stx)))
-        } else {
-            Err(Error::Custom(format!(
-                "Cannot get receipt by hash {:?}",
-                hash
-            )))
-        }
-    }
-
-    async fn get_transaction_receip_temp(&self, hash: H256) -> RpcResult<Option<Web3ReceiptTemp>> {
-        let res = self
-            .adapter
-            .get_transaction_by_hash(Context::new(), hash)
-            .await
-            .map_err(|e| Error::Custom(e.to_string()))?;
-
-        if res.is_none() {
-            return Ok(None);
-        }
-
-        let stx = res.unwrap();
-        if let Some(receipt) = self
-            .adapter
-            .get_receipt_by_tx_hash(Context::new(), hash)
-            .await
-            .map_err(|e| Error::Custom(e.to_string()))?
-        {
-            Ok(Some(Web3ReceiptTemp::new(receipt, stx)))
         } else {
             Err(Error::Custom(format!(
                 "Cannot get receipt by hash {:?}",

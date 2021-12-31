@@ -12,7 +12,9 @@ use protocol::traits::{MemPool, Storage};
 use protocol::types::{Bytes, SignedTransaction, H160, H256, U256};
 use protocol::ProtocolResult;
 
-use crate::jsonrpc::web3_types::{BlockId, Web3Block, Web3CallRequest, Web3Receipt,Web3ReceiptTemp};
+use crate::jsonrpc::web3_types::{
+    BlockId, Web3Block, Web3CallRequest, Web3Receipt,
+};
 use crate::{adapter::DefaultAPIAdapter, APIError};
 
 type RpcResult<T> = Result<T, Error>;
@@ -61,10 +63,6 @@ pub trait AxonJsonRpc {
 
     #[method(name = "eth_getTransactionReceipt")]
     async fn get_transaction_receipt(&self, hash: H256) -> RpcResult<Option<Web3Receipt>>;
-
-    #[method(name = "eth_getTransactionReceipt_Temp")]
-    async fn get_transaction_receip_temp(&self, hash: H256) -> RpcResult<Option<Web3ReceiptTemp>>;
-
 
     #[method(name = "net_listening")]
     async fn listening(&self) -> RpcResult<bool>;
