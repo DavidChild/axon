@@ -8,8 +8,8 @@ use common_merkle::Merkle;
 use protocol::codec::ProtocolCodec;
 use protocol::traits::{ApplyBackend, Backend, Executor, ExecutorAdapter as Adapter};
 use protocol::types::{
-    Account, Config, ExecResp, Hash, Hasher, SignedTransaction, TransactionAction, TxResp, H160,
-    H256, NIL_DATA, RLP_NULL, U256,
+    Account, Config, ExecResp, Hash, Hasher, Hex, SignedTransaction, TransactionAction, TxResp,
+    H160, H256, NIL_DATA, RLP_NULL, U256,
 };
 
 pub use crate::adapter::{EVMExecutorAdapter, MPTTrie, RocksTrieDB};
@@ -30,6 +30,9 @@ impl EvmExecutor {
 impl Executor for EvmExecutor {
     // Used for query data API, this function will not modify the world state.
     fn call<B: Backend>(&self, backend: &mut B, addr: H160, data: Vec<u8>) -> TxResp {
+        print!("call data{:?}", &data);
+        print!("call address{:?}", &data);
+
         let config = Config::london();
         let metadata = StackSubstateMetadata::new(u64::MAX, &config);
         let state = MemoryStackState::new(metadata, backend);
@@ -44,6 +47,8 @@ impl Executor for EvmExecutor {
             Vec::new(),
         );
 
+        print!("call ret{:?}", ret);
+        print!("call error：{:?}", exit_reason);
         TxResp {
             exit_reason,
             ret,
@@ -104,13 +109,18 @@ impl EvmExecutor {
         backend: &mut B,
         tx: SignedTransaction,
     ) -> TxResp {
+        
+        
         let config = Config::london();
         let metadata = StackSubstateMetadata::new(u64::MAX, &config);
         let state = MemoryStackState::new(metadata, backend);
         let precompiles = BTreeMap::new();
         let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
         let (exit_reason, ret) = match tx.transaction.unsigned.action {
-            TransactionAction::Call(addr) => executor.transact_call(
+            TransactionAction::Call(addr) =>
+            {
+              
+             executor.transact_call(
                 tx.sender,
                 addr,
                 tx.transaction.unsigned.value,
@@ -122,8 +132,9 @@ impl EvmExecutor {
                     .into_iter()
                     .map(|x| (x.address, x.slots))
                     .collect(),
-            ),
+            )},
             TransactionAction::Create => {
+                println!("Create data: {:?}",hex::encode(&tx.transaction.unsigned.data));
                 let exit_reason = executor.transact_create2(
                     tx.sender,
                     tx.transaction.unsigned.value,
@@ -145,8 +156,9 @@ impl EvmExecutor {
         let gas_used = executor.used_gas();
 
         let code_address = if exit_reason.is_succeed() {
+
             let (values, logs) = executor.into_state().deconstruct();
-            backend.apply(values, logs, true);
+             backend.apply(values, logs, true);
             if tx.transaction.unsigned.action == TransactionAction::Create {
                 Some(code_address(
                     &tx.sender,
@@ -159,7 +171,7 @@ impl EvmExecutor {
         } else {
             None
         };
-
+       
         TxResp {
             exit_reason,
             ret,

@@ -47,7 +47,7 @@ pub struct Web3Receipt {
     pub effective_gas_price: U256,
     pub from:                H160,
     pub gas_used:            U256,
-    pub logs:                Vec<Log>,
+    pub logs:                Vec<Web3ReceiptLog>,
     pub logs_bloom:          Bloom,
     #[serde(rename = "root")]
     pub state_root:          Hash,
@@ -58,26 +58,59 @@ pub struct Web3Receipt {
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub transaction_type:    Option<U64>,
 }
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+ pub struct  Web3ReceiptLog
+ {
+    pub address: H160,
+	pub topics: Vec<H256>,
+	pub data: String,
+    pub blockNumber:U256,
+    pub transactionHash:Hash,
+    pub transactionIndex: Option<U256> ,
+    pub blockHash: Hash,
+    pub logIndex:U256,
+    pub removed:bool
+ }
 
 impl Web3Receipt {
     pub fn new(receipt: Receipt, stx: SignedTransaction) -> Web3Receipt {
-        Web3Receipt {
+      let mut web3_receipt=   Web3Receipt {
             block_number:        receipt.block_number.into(),
             block_hash:          receipt.block_hash,
-            contract_address:    receipt.code_address,
+            contract_address:    receipt.code_address.map(Into::into),
             cumulative_gas_used: receipt.used_gas,
             effective_gas_price: receipt.used_gas,
             from:                receipt.sender,
             status:              receipt.status(),
             gas_used:            receipt.used_gas,
-            logs:                receipt.logs,
+            logs:                vec![],
             logs_bloom:          receipt.logs_bloom,
             state_root:          receipt.state_root,
             to:                  stx.get_to(),
             transaction_hash:    receipt.tx_hash,
             transaction_index:   Some(receipt.tx_index.into()),
             transaction_type:    Some(0x02u64.into()),
+            
+        };
+        for   item in  receipt.logs.into_iter()
+        {
+            let mut prex="0x".to_string();
+            let  hex_bytes = hex::encode(item.data); //hex_encode_bytes(resp.ret);
+            prex.push_str(&hex_bytes);
+            web3_receipt.logs.push( Web3ReceiptLog{
+                address:item.address,
+                topics:item.topics,
+                data:prex,
+                blockNumber:receipt.block_number.into(),
+                transactionHash: receipt.tx_hash,
+                transactionIndex: Some(receipt.tx_index.into()),
+                blockHash: receipt.block_hash,
+                logIndex:U256::default(),
+                removed:false
+             });
         }
+        web3_receipt
     }
 }
 
@@ -96,7 +129,7 @@ pub struct Web3Block {
     pub number:            U256,
     pub gas_used:          U256,
     pub gas_limit:         U256,
-    pub extra_data:        Bytes,
+    pub extra_data:        String,
     pub logs_bloom:        Option<Bloom>,
     pub timestamp:         U256,
     pub difficulty:        U256,
@@ -106,6 +139,8 @@ pub struct Web3Block {
     pub uncles:            Vec<H256>,
     pub transactions:      Vec<RichTransactionOrHash>,
     pub size:              Option<U256>,
+    pub mixHash:           H256,
+    pub nonce:             U256
 }
 
 impl From<Block> for Web3Block {
@@ -126,17 +161,20 @@ impl From<Block> for Web3Block {
             total_difficulty:  None,
             seal_fields:       vec![],
             base_fee_per_gas:  b.header.base_fee_per_gas,
-            extra_data:        b.header.extra_data,
+            extra_data:        hex::encode("0"),//b.header.extra_data,
             size:              Some(encode.len().into()),
             gas_limit:         b.header.gas_limit,
             gas_used:          b.header.gas_used,
             timestamp:         b.header.timestamp.into(),
+         
             transactions:      b
                 .tx_hashes
                 .iter()
                 .map(|hash| RichTransactionOrHash::Hash(*hash))
                 .collect(),
             uncles:            vec![],
+            mixHash:        H256::default(),
+            nonce:          U256::default(),
         }
     }
 }
@@ -223,16 +261,17 @@ pub enum TransactionCondition {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Web3CallRequest {
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
-    pub transaction_type:         Option<U64>,
-    pub from:                     H160,
-    pub to:                       H160,
+    pub transaction_type: Option<U64>,
+    pub from:             Option<H160>,
+    pub to:               H160,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub gas_price:                Option<U256>,
+    pub gas_price:        Option<U256>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_fee_per_gas:          Option<U256>,
-    pub gas:                      Option<U256>,
-    pub value:                    Option<U256>,
-    pub data:                     Bytes,
+    pub max_fee_per_gas:  Option<U256>,
+    pub gas:              Option<U256>,
+    pub value:            Option<U256>,
+    pub data:             String,
+
     pub nonce:                    Option<U256>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub access_list:              Option<AccessList>,

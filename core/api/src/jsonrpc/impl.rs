@@ -1,8 +1,13 @@
+use std::collections::BTreeMap;
+use std::str::FromStr;
+
+use core_executor::EvmExecutor;
 use jsonrpsee::types::Error;
 
-use protocol::traits::{APIAdapter, Context, MemPool, Storage};
+use protocol::traits::{APIAdapter, Context, Executor, MemPool, Storage};
 use protocol::types::{
-    Bytes, Header, Hex, SignedTransaction, TxResp, UnverifiedTransaction, H160, H256, H64, U256,
+    Bytes, Header, Hex, MemoryAccount, MemoryBackend, MemoryVicinity, SignedTransaction, TxResp,
+    UnverifiedTransaction, H160, H256, H64, U256,
 };
 use protocol::{async_trait, codec::ProtocolCodec, ProtocolResult};
 
@@ -26,7 +31,12 @@ where
         Self { adapter }
     }
 
-    async fn call_evm(&self, req: Web3CallRequest, number: Option<u64>) -> ProtocolResult<TxResp> {
+    async fn call_evm(
+        &self,
+        req: Web3CallRequest,
+        databytes: Bytes,
+        number: Option<u64>,
+    ) -> ProtocolResult<TxResp> {
         let header = self
             .adapter
             .get_block_header_by_number(Context::new(), number)
@@ -36,7 +46,7 @@ where
         let mock_header = mock_header_by_call_req(header, &req);
 
         self.adapter
-            .evm_call(Context::new(), req.from, req.data.to_vec(), mock_header)
+            .evm_call(Context::new(), req.to, databytes.to_vec(), mock_header)
             .await
     }
 }
@@ -49,15 +59,17 @@ where
     DB: cita_trie::DB + 'static,
 {
     async fn send_raw_transaction(&self, tx: String) -> RpcResult<H256> {
-        log::info!("rev orginal stx info:{:?}", &tx);
         let stx = Hex::from_string(tx)
             .map_err(|e| Error::Custom(e.to_string()))?
             .decode();
         let utx = UnverifiedTransaction::decode(&stx[1..])
             .map_err(|e| Error::Custom(e.to_string()))?
             .hash();
+
         let stx = SignedTransaction::try_from(utx).map_err(|e| Error::Custom(e.to_string()))?;
+        println!("insert data:{:?}",hex::encode(&stx.transaction.unsigned.data));
         let hash = stx.transaction.hash;
+      
         self.adapter
             .insert_signed_txs(Context::new(), stx)
             .await
@@ -100,8 +112,7 @@ where
                             .await
                             .map_err(|e| Error::Custom(e.to_string()))?
                             .unwrap();
-
-                        txs.push(RichTransactionOrHash::Rich(tx));
+                               txs.push(RichTransactionOrHash::Rich(tx));
                     }
 
                     ret.transactions = txs;
@@ -121,6 +132,19 @@ where
             .map_err(|e| Error::Custom(e.to_string()))?;
 
         Ok(account.nonce)
+    }
+
+    async fn get_transaction_count_by_number(&self, number: BlockId) -> RpcResult<U256> {
+        let block = self
+            .adapter
+            .get_block_by_number(Context::new(), number.into())
+            .await
+            .map_err(|e| Error::Custom(e.to_string()))?;
+        let count = match block {
+            Some(bc) => bc.tx_hashes.len(),
+            _ => 0,
+        };
+        Ok(U256::from(count))
     }
 
     async fn block_number(&self) -> RpcResult<U256> {
@@ -155,43 +179,62 @@ where
         self.chain_id().await
     }
 
-    async fn call(&self, req: Web3CallRequest, number: BlockId) -> RpcResult<Bytes> {
+    async fn call(&self, req: Web3CallRequest, number: BlockId) -> RpcResult<String> {
+        let datatmp = req.data.clone();
+        let datadecodebytes = Hex::from_string(datatmp)
+            .map_err(|e| Error::Custom(e.to_string()))?
+            .decode();
         let resp = self
-            .call_evm(req, number.into())
+            .call_evm(req, datadecodebytes, number.into())
             .await
             .map_err(|e| Error::Custom(e.to_string()))?;
-
-        Ok(Bytes::from(resp.ret))
+        let mut prex="0x".to_string();
+        let  hex_bytes = hex::encode(resp.ret); //hex_encode_bytes(resp.ret);
+        println!("hhhhex_bytes:{:?}",hex_bytes);
+         prex.push_str(&hex_bytes);
+        //let rs=String::from_utf8();
+        //  let rst=  match rs {
+        //      Ok(r)=>hex::encode(r),
+        //     _ =>hex::encode("0")
+        // };
+        Ok(prex)
     }
 
     async fn estimate_gas(&self, req: Web3CallRequest, number: Option<BlockId>) -> RpcResult<U256> {
+        let datatmp = req.data.clone();
+        let datadecodebytes = Hex::from_string(datatmp)
+            .map_err(|e| Error::Custom(e.to_string()))?
+            .decode();
+
         let num = match number {
             Some(BlockId::Num(n)) => Some(n),
             _ => None,
         };
 
         let resp = self
-            .call_evm(req, num)
+            .call_evm(req, datadecodebytes, num)
             .await
             .map_err(|e| Error::Custom(e.to_string()))?;
 
         Ok(resp.gas_used.into())
     }
 
-    async fn get_code(&self, address: H160, number: BlockId) -> RpcResult<Bytes> {
+    async fn get_code(&self, address: H160, number: BlockId) -> RpcResult<String> {
         let account = self
             .adapter
             .get_account(Context::new(), address, number.into())
             .await
             .map_err(|e| Error::Custom(e.to_string()))?;
 
-        self.adapter
+        let opcode = self
+            .adapter
             .get_code_by_hash(Context::new(), &account.code_hash)
             .await
-            .map_err(|e| Error::Custom(e.to_string()))?
-            .ok_or_else(|| {
-                Error::Custom(format!("Cannot get code by hash {:?}", account.code_hash))
-            })
+            .map_err(|e| Error::Custom(e.to_string()))?;
+        match opcode {
+            Some(c) => Ok(hex::encode("0")),
+            _ => Ok(hex::encode("0")),
+        }
     }
 
     async fn get_transaction_receipt(&self, hash: H256) -> RpcResult<Option<Web3Receipt>> {
@@ -229,7 +272,9 @@ where
         Ok(true)
     }
 }
-
+fn hex_encode_bytes<T: AsRef<[u8]>>(input: T) -> Bytes {
+    Bytes::from(hex::encode(input).as_bytes().to_vec())
+}
 fn mock_header_by_call_req(latest_header: Header, call_req: &Web3CallRequest) -> Header {
     Header {
         prev_hash:         latest_header.prev_hash,
