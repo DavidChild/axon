@@ -674,7 +674,7 @@ impl<Adapter: APIAdapter + 'static> AxonJsonRpcServer for JsonRpcImpl<Adapter> {
         Ok(id.into())
     }
 
-    fn filter_changes(&self, index: Index) -> RpcResult<FilterChanges> {
+    async fn filter_changes(&self, index: Index) -> RpcResult<FilterChanges> {
         let filter = match self.polls().lock().poll_mut(&index.value()) {
             Some(filter) => filter.clone(),
             None => return Err(Error::Custom(format!("can not find filter"))),

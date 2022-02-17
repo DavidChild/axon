@@ -120,7 +120,7 @@ pub trait AxonJsonRpc {
     async fn new_pending_transaction_filter(&self) -> RpcResult<U256>;
 
     #[method(name = "eth_getFilterChanges")]
-    fn filter_changes(&self, index: Index) -> RpcResult<FilterChanges>;
+    async fn filter_changes(&self, index: Index) -> RpcResult<FilterChanges>;
 
     // #[method(name = "eth_getFilterLogs")]
     // fn filter_logs(&self, _: Index) -> BoxFuture<Vec<Log>>;
