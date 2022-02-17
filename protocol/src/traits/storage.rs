@@ -96,6 +96,8 @@ pub trait Storage: CommonStorage {
 
     async fn get_code_by_hash(&self, ctx: Context, hash: &Hash) -> ProtocolResult<Option<Bytes>>;
 
+    async fn get_number_by_hash(&self, ctx: Context, hash: &Hash) -> ProtocolResult<Option<u64>>;
+
     async fn get_code_by_address(
         &self,
         _ctx: Context,

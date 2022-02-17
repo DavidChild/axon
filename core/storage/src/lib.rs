@@ -409,6 +409,19 @@ impl<Adapter: StorageAdapter> Storage for ImplStorage<Adapter> {
         Ok(None)
     }
 
+    async fn get_number_by_hash(
+        &self,
+        _ctx: Context,
+        block_hash: &Hash,
+    ) -> ProtocolResult<Option<u64>> {
+        let block_number = self
+            .adapter
+            .get::<BlockHashNumberSchema>(*block_hash)
+            .await?;
+
+        Ok(block_number)
+    }
+
     // #[muta_apm::derive::tracing_span(kind = "storage")]
     async fn get_transactions(
         &self,
