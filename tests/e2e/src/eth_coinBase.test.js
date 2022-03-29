@@ -1,10 +1,10 @@
 // eslint-disable-next-line
-import { goto } from "./goto";
+import  goto from "./goto";
 const pageName = "eth_coinBase.html";
 describe("eth_coinBase", () => {
   /**
   * common real test
-  * axon haven't wallet now. so skip thistest case
+  * axon haven't wallet now. so skip this test case
   */
   it("eth_coinBase_1", async () => {
     await goto.goto(page, pageName);

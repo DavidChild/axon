@@ -1,7 +1,5 @@
-// eslint-disable-next-line
-import { goto } from "./goto";
-// eslint-disable-next-line import/named
-import { testDataManage } from "./create_test_data/createTestDataManage";
+import goto from "./goto";
+import testDataManage from "./create_test_data/createTestDataManage";
 
 let testDataInfo = null;
 const pageName = "eth_getTransactionByBlockHashAndIndex.html";

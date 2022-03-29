@@ -1,5 +1,5 @@
-// eslint-disable-next-line
-import { goto } from "./goto";
+import goto from "./goto";
+
 const pageName = "eth_hasHrate.html";
 describe("eth_hasHrate", () => {
   /**
