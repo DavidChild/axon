@@ -311,7 +311,7 @@ dependencies = [
  "serde_urlencoded",
  "sync_wrapper",
  "tokio",
- "tokio-util",
+ "tokio-util 0.6.9",
  "tower",
  "tower-http",
  "tower-layer",
@@ -1064,7 +1064,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "tokio-util",
+ "tokio-util 0.6.9",
 ]
 
 [[package]]
@@ -1155,7 +1155,7 @@ dependencies = [
  "snap",
  "socket2",
  "tentacle",
- "tokio-util",
+ "tokio-util 0.6.9",
  "x25519-dalek",
  "zeroize_derive",
 ]
@@ -1919,7 +1919,7 @@ dependencies = [
  "indexmap",
  "slab",
  "tokio",
- "tokio-util",
+ "tokio-util 0.6.9",
  "tracing",
 ]
 
@@ -2347,7 +2347,7 @@ dependencies = [
  "serde_json",
  "soketto",
  "tokio",
- "tokio-util",
+ "tokio-util 0.6.9",
  "tracing",
 ]
 
@@ -3934,7 +3934,7 @@ dependencies = [
  "tentacle-secio",
  "thiserror",
  "tokio",
- "tokio-util",
+ "tokio-util 0.6.9",
  "tokio-yamux",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -3956,9 +3956,9 @@ dependencies = [
 
 [[package]]
 name = "tentacle-secio"
-version = "0.5.2"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d4f18ad65a9ec344b1989bcacbaf01e3bf213de71a78d969f4efe3552a52625"
+checksum = "a25404f0ad099d7ac35c4873e854a1f9772014b1c42379780f7b9f55fa464913"
 dependencies = [
  "bs58",
  "bytes",
@@ -3976,7 +3976,7 @@ dependencies = [
  "secp256k1",
  "sha2",
  "tokio",
- "tokio-util",
+ "tokio-util 0.7.1",
  "unsigned-varint",
  "x25519-dalek",
 ]
@@ -4156,6 +4156,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-util"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0edfdeb067411dba2044da6d1cb2df793dd35add7888d73c16e3381ded401764"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "futures-sink",
+ "pin-project-lite",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "tokio-yamux"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4166,7 +4180,7 @@ dependencies = [
  "log",
  "nohash-hasher",
  "tokio",
- "tokio-util",
+ "tokio-util 0.6.9",
 ]
 
 [[package]]
@@ -4189,7 +4203,7 @@ dependencies = [
  "pin-project",
  "pin-project-lite",
  "tokio",
- "tokio-util",
+ "tokio-util 0.6.9",
  "tower-layer",
  "tower-service",
  "tracing",
